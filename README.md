@@ -1,4 +1,4 @@
-concatjs
+concat.js
 ========
 
 is a Node.js script that concatenates HTML, CSS and JS into a single .HTML file for faster page load.
@@ -6,7 +6,7 @@ is a Node.js script that concatenates HTML, CSS and JS into a single .HTML file 
 It removes whitespace and comments from your CSS and HTML, but NOT from your JS files. This way you can pick your favourite minification tool (Closure compiler anyone?).
 
 Usage
-=====
+-----
 
     node concat.js fileToConcat.html concatFileName.html
 
