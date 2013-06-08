@@ -7,13 +7,11 @@ function readFile(path) {
 }
 
 function logHeader() {
-	console.log('------------ Concat.js ------------');
-	console.log(' ');
+	console.log('\n------------ concat.js ------------\n');
 }
 
 function logFooter() {
-	console.log(' ');
-	console.log('-----------------------------------');
+	console.log('\n-----------------------------------\n');
 }
 
 function logError(message) {
@@ -22,7 +20,7 @@ function logError(message) {
 	logFooter();
 }
 
-function cssMinify(css) {
+function minifyCss(css) {
 	css = css.replace(/\n/ig, '');
 	css = css.replace(/\s*:\s*/ig, ':');
 	css = css.replace(/\s*\,\s*/ig, ',');
@@ -58,7 +56,7 @@ function getUrl(tag, srcOrHref) {
 function parseCssTag(tag) {
 	var part = tag.split('>');
 	var fileContent = readFile(getUrl(part[0], 'href='));
-	return 'style>' + cssMinify(fileContent) + '</style>' + part[1];
+	return 'style>' + minifyCss(fileContent) + '</style>' + part[1];
 }
 
 function parseScriptTag(tag) {
@@ -70,10 +68,9 @@ function parseScriptTag(tag) {
 function runConcat(fileToRead, fileToSave) {
 	var data = readFile(fileToRead).replace(/<!--[\s\S]*?-->/g, ''); //delete comments in the HTML...
 	var tags = data.split('<');
-	var tag, i;
+	var i;
 	for (i = 0; i < tags.length; i++) {
-		tag = tags[i].toLowerCase(); //to LC for comparison only!
-		if (isScriptTag(tag)) {
+		if (isScriptTag(tags[i].toLowerCase())) {
 			while (isNonMinScriptFile(tags[i].toLowerCase())) {
 				tags.splice(i, 2);
 			}
@@ -81,47 +78,40 @@ function runConcat(fileToRead, fileToSave) {
 				tags[i] = parseScriptTag(tags[i]);
 			}
 		}
-		if (isCssFile(tag)) {
+		if (isCssFile(tags[i].toLowerCase())) {
 			tags[i] = parseCssTag(tags[i]);
 		}
-		if (tag.indexOf('script>') !== 0) {
+		if (tags[i].toLowerCase().indexOf('script>') !== 0) {
 			tags[i] = tags[i].replace(/\n/g, '').replace(/\t/g, '');
 		}
 	}
-
 	fs.writeFileSync(fileToSave, tags.join('<'));
 	logHeader();
+	console.log('Done! Result was written to: ' + fileToSave);
 	console.timeEnd('Finished task in: ');
-	logFooter();
+	logFooter(); //END OF PROGRAM
 }
 
-function validateInput() {
-	var input = process.argv;
-	input.splice(0, 2);
-	if (input.length === 0) {
+(function getInput() {
+	var args = process.argv;
+	args.splice(0, 2); //remove node and concat.js args
+	if (args.length === 0) {
 		logError('You didnt enter any files to read or write to!');
-	} else if (input.length > 2) {
+	} else if (args.length > 2) {
 		logError('Too many arguments!');
-	} else if (input[0].search('.html') === -1) {
-		logError('"' + input[0] + '" is not a .html file!');
+	} else if (args[0].search('.html') === -1) {
+		logError('"' + args[0] + '" is not a .html file!');
 	} else {
-
-		if (input.length === 1) {
-			input.push(input[0].replace('.html', '.concat.html'));
-		} else {
-			if (input[1].search('.html') === -1) {
-				input[1] += '.concat.html';
-			}
+		if (args.length === 1) {
+			args.push(args[0].replace('.html', '.concat.html'));
 		}
-
-		if (input[0] === input[1]) {
+		if (args[1].search('.html') === -1) {
+			args[1] += '.concat.html';
+		}
+		if (args[0] === args[1]) {
 			logError('File names must differ in order to avoid overwriting!');
 			return;
 		}
-
-		runConcat(input[0], input[1]);
-
+		runConcat(args[0], args[1]);
 	}
-}
-
-validateInput();
+}());
