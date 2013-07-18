@@ -1,3 +1,5 @@
+/*jslint node: true, plusplus: true, vars: true, white: true, maxerr: 200, regexp: true */
+
 console.time('Finished task in: ');
 
 var fs = require('fs');
@@ -21,6 +23,7 @@ function logError(message) {
 }
 
 function minifyCss(css) {
+	css = css.replace(/\/\*.+?\*\/|\/\/.*(?=[\n\r])/g, '');
 	css = css.replace(/\n/ig, '');
 	css = css.replace(/\s*:\s*/ig, ':');
 	css = css.replace(/\s*\,\s*/ig, ',');
@@ -31,19 +34,21 @@ function minifyCss(css) {
 }
 
 function isCssFile(tag) {
+	tag = tag.split('>')[0].toLowerCase();
 	return tag.indexOf('link') === 0 && tag.search('stylesheet') !== -1 && tag.search('.css') !== -1 && tag.search('http://') === -1 && tag.search('href=') !== -1;
 }
 
-function isScriptTag(tag) {
-	return tag.indexOf('script') === 0;
+function isInlineCss(tag) {
+	return tag.search(/style/i) === 0;
 }
 
-function isNonMinScriptFile(tag) {
-	return tag.search('src') !== -1 && tag.search('http://') === -1 && tag.search('.min.js') === -1;
+function isLocalScriptFile(tag) {
+	tag = tag.split('>')[0].toLowerCase();
+	return tag.indexOf('script') === 0 && tag.indexOf('src') !== -1 && tag.indexOf('http://') === -1 && tag.indexOf('https://') === -1 && tag.indexOf('src="//') === -1 && tag.indexOf("src='//") === -1;
 }
 
-function isMinScriptFile(tag) {
-	return tag.search('src') !== -1 && tag.search('http://') === -1 && tag.search('.min.js') !== -1;
+function isMinified(scriptTag) {
+	return scriptTag.split('>')[0].search(/.min.js/i) !== -1;
 }
 
 function getUrl(tag, srcOrHref) {
@@ -53,16 +58,25 @@ function getUrl(tag, srcOrHref) {
 	return tag.substring(start + 1, end);
 }
 
-function parseCssTag(tag) {
+function includeCssFile(tag) {
 	var part = tag.split('>');
 	var fileContent = readFile(getUrl(part[0], 'href='));
 	return 'style>' + minifyCss(fileContent) + '</style>' + part[1];
 }
 
-function parseScriptTag(tag) {
+function includeScriptFile(tag) {
 	var part = tag.split('>');
 	var fileContent = readFile(getUrl(part[0], 'src='));
 	return 'script>' + fileContent;
+}
+
+function parseInlineCss(tag) {
+	var css = tag.split('>')[1];
+	if (css) {
+		css = minifyCss(css);
+		return tag.split('>')[0] + '>' + css;
+	}
+	return tag;
 }
 
 function runConcat(fileToRead, fileToSave) {
@@ -70,16 +84,21 @@ function runConcat(fileToRead, fileToSave) {
 	var tags = data.split('<');
 	var i;
 	for (i = 0; i < tags.length; i++) {
-		if (isScriptTag(tags[i].toLowerCase())) {
-			while (isNonMinScriptFile(tags[i].toLowerCase())) {
-				tags.splice(i, 2);
+		if (isLocalScriptFile(tags[i])) {
+			while (isLocalScriptFile(tags[i]) && !isMinified(tags[i])) {
+				tags.splice(i, 2); //remove all non-minified, local scripts...
 			}
-			if (isMinScriptFile(tags[i].toLowerCase())) {
-				tags[i] = parseScriptTag(tags[i]);
+			if (isMinified(tags[i])) {
+				tags[i] = includeScriptFile(tags[i]);
 			}
 		}
-		if (isCssFile(tags[i].toLowerCase())) {
-			tags[i] = parseCssTag(tags[i]);
+		if (isCssFile(tags[i])) {
+			tags[i] = includeCssFile(tags[i]);
+			continue;
+		}
+		if (isInlineCss(tags[i])) {
+			tags[i] = parseInlineCss(tags[i]);
+			continue;
 		}
 		if (tags[i].toLowerCase().indexOf('script>') !== 0) {
 			tags[i] = tags[i].replace(/\n/g, '').replace(/\t/g, '');
