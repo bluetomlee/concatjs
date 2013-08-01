@@ -88,7 +88,7 @@ function runConcat(fileToRead, fileToSave) {
 			while (isLocalScriptFile(tags[i]) && !isMinified(tags[i])) {
 				tags.splice(i, 2); //remove all non-minified, local scripts...
 			}
-			if (isMinified(tags[i])) {
+			if (isLocalScriptFile(tags[i]) && isMinified(tags[i])) {
 				tags[i] = includeScriptFile(tags[i]);
 			}
 		}
